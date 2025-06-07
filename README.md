@@ -1,1 +1,1585 @@
-# people-analytic-dashboard
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>People Analytics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 40px;
+            font-size: 28px;
+            font-weight: 700;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .nav-title {
+            margin: 30px 0 15px 0;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .nav-item {
+            padding: 15px 20px;
+            margin: 8px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(5px);
+        }
+        
+        .nav-item.active {
+            background: rgba(255,255,255,0.25);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .nav-item::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            background: rgba(255,255,255,0.6);
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+        
+        .nav-item.active::before {
+            background: #fff;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            padding: 30px;
+            width: calc(100% - 280px);
+            transition: all 0.3s ease;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+        
+        .main-content.expanded {
+            margin-left: 0;
+            width: 100%;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="80" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="70" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            pointer-events: none;
+        }
+        
+        .header-content {
+            z-index: 1;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+        
+        .header-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 20px;
+            z-index: 1;
+            position: relative;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .filter-label {
+            font-size: 12px;
+            opacity: 0.9;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        select, .search-input {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        select:hover, .search-input:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .toggle-sidebar {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .toggle-sidebar:hover {
+            background: rgba(255,255,255,1);
+            transform: scale(1.1);
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+        }
+        
+        .card-title {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 15px 20px;
+            margin: -25px -25px 25px -25px;
+            border-radius: 20px 20px 0 0;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-action {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .card-action:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        
+        .metric-value {
+            font-size: 56px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            margin: 25px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-change {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .change-positive {
+            color: #27ae60;
+        }
+        
+        .change-negative {
+            color: #e74c3c;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 320px;
+            margin: 25px 0;
+        }
+        
+        .chart-container.small {
+            height: 250px;
+        }
+        
+        .chart-container.large {
+            height: 400px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 25px 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8fafc 0%, #e3f2fd 100%);
+            border-radius: 15px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 15px;
+            border-radius: 12px;
+        }
+        
+        .stat-item:hover {
+            background: rgba(255,255,255,0.8);
+            transform: translateY(-3px);
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .wide-card {
+            grid-column: 1 / -1;
+        }
+        
+        .half-wide {
+            grid-column: span 2;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        
+        .close:hover {
+            color: #e74c3c;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .export-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+            z-index: 3000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            width: 100%;
+            max-width: 400px;
+            padding-left: 45px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+        }
+        
+        .department-filter {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .dept-button {
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .dept-button.active, .dept-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 250px;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 20px;
+            }
+            
+            .filters {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+        }
+        
+        .clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .clickable:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <button class="toggle-sidebar" onclick="toggleSidebar()">☰</button>
+    
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">👥</div>
+                <div>People Analytics</div>
+            </div>
+            
+            <div class="nav-title">Dashboard Navigation</div>
+            
+            <div class="nav-item active" onclick="switchTab('workforce')">Workforce Overview</div>
+            <div class="nav-item" onclick="switchTab('diversity')">Diversity & Inclusion</div>
+            <div class="nav-item" onclick="switchTab('performance')">Performance Metrics</div>
+            <div class="nav-item" onclick="switchTab('attrition')">Attrition Analysis</div>
+            <div class="nav-item" onclick="switchTab('compensation')">Compensation Analysis</div>
+            <div class="nav-item" onclick="switchTab('reports')">Custom Reports</div>
+        </div>
+        
+        <div class="main-content" id="mainContent">
+            <div class="header">
+                <div class="header-content">
+                    <h1 id="pageTitle">People Analytics Dashboard</h1>
+                    <p class="header-subtitle" id="pageSubtitle">Comprehensive workforce insights and analytics</p>
+                </div>
+                <div class="filters">
+                    <div class="filter-group">
+                        <label class="filter-label">Select Year:</label>
+                        <select id="yearFilter" onchange="updateDashboard()">
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Department:</label>
+                        <select id="deptFilter" onchange="updateDashboard()">
+                            <option value="All">All Departments</option>
+                            <option value="Production">Production</option>
+                            <option value="IT">IT/IS</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Admin">Admin Offices</option>
+                            <option value="Engineering">Software Engineering</option>
+                            <option value="Executive">Executive Office</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Search:</label>
+                        <div class="search-container">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" class="search-input" id="searchInput" placeholder="Search employees..." onkeyup="searchEmployees()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading analytics data...</p>
+            </div>
+            
+            <div id="workforce" class="tab-content">
+                <div class="dashboard-grid">
+                    <div class="card clickable" onclick="showEmployeeDetails()">
+                        <div class="card-title">
+                            Total Employees
+                            <button class="card-action" onclick="exportData('employees')">Export</button>
+                        </div>
+                        <div class="metric-value" id="totalEmployees">247</div>
+                        <div class="metric-change change-positive" id="employeeChange">+12% from last year</div>
+                    </div>
+                    
+                    <div class="card clickable" onclick="showGrowthDetails()">
+                        <div class="card-title">
+                            Growth Rate
+                            <button class="card-action" onclick="exportData('growth')">Export</button>
+                        </div>
+                        <div class="metric-value" style="color: #27ae60;">8.5%</div>
+                        <div class="metric-change change-positive">+2.1% from target</div>
+                    </div>
+                    
+                    <div class="card half-wide">
+                        <div class="card-title">
+                            Employee Growth Trend
+                            <button class="card-action" onclick="exportData('growth-chart')">Export</button>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="growthChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">
+                            Gender Distribution
+                            <button class="card-action" onclick="showGenderDetails()">Details</button>
+                        </div>
+                        <div class="chart-container small">
+                            <canvas id="genderChart"></canvas>
+                        </div>
+                        <div class="stats-row">
+                            <div class="stat-item clickable" onclick="filterByGender('male')">
+                                <div class="stat-value">142</div>
+                                <div class="stat-label">Male (57.5%)</div>
+                            </div>
+                            <div class="stat-item clickable" onclick="filterByGender('female')">
+                                <div class="stat-value">105</div>
+                                <div class="stat-label">Female (42.5%)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">
+                            Age Distribution
+                            <button class="card-action" onclick="showAgeDetails()">Details</button>
+                        </div>
+                        <div class="chart-container small">
+                            <canvas id="ageChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">
+                            Annual Turnover Rate
+                            <button class="card-action" onclick="showTurnoverTrend()">Trend</button>
+                        </div>
+                        <div class="metric-value" style="color: #e74c3c;">6.2%</div>
+                        <div class="metric-change change-negative">+0.8% from last year</div>
+                    </div>
+                    
+                    <div class="card half-wide">
+                        <div class="card-title">
+                            Hiring vs Termination Trends
+                            <button class="card-action" onclick="exportData('turnover-chart')">Export</button>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="turnoverChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">
+                            Average Tenure
+                            <button class="card-action" onclick="showTenureBreakdown()">Breakdown</button>
+                        </div>
+                        <div class="stats-row">
+                            <div class="stat-item clickable" onclick="filterByTenure('overall')">
+                                <div class="stat-value">4.8 yrs</div>
+                                <div class="stat-label">Overall Average</div>
+                            </div>
+                        </div>
+                        <div class="stats-row">
+                            <div class="stat-item clickable" onclick="filterByTenure('active')">
+                                <div class="stat-value">5.4 yrs</div>
+                                <div class="stat-label">Active Employees</div>
+                            </div>
+                        </div>
+                        <div class="stats-row">
+                            <div class="stat-item clickable" onclick="filterByTenure('terminated')">
+                                <div class="stat-value">3.2 yrs</div>
+                                <div class="stat-label">Terminated</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">
+                            Tenure Distribution
+                            <button class="card-action" onclick="exportData('tenure-chart')">Export</button>
+                        </div>
+                        <div class="chart-container small">
+                            <canvas id="tenureChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">
+                            Termination by Tenure
+                            <button class="card-action" onclick="showTerminationAnalysis()">Analysis</button>
+                        </div>
+                        <div class="chart-container small">
+                            <canvas id="terminationChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card half-wide">
+                        <div class="card-title">
+                            Department Distribution
+                            <button class="card-action" onclick="exportData('department-chart')">Export</button>
+                        </div>
+                        <div class="department-filter">
+                            <button class="dept-button active" onclick="filterDepartment('All')">All</button>
+                            <button class="dept-button" onclick="filterDepartment('Production')">Production</button>
+                            <button class="dept-button" onclick="filterDepartment('IT')">IT/IS</button>
+                            <button class="dept-button" onclick="filterDepartment('Sales')">Sales</button>
+                            <button class="dept-button" onclick="filterDepartment('Admin')">Admin</button>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="departmentChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card wide-card">
+                        <div class="card-title">
+                            Top Positions by Headcount
+                            <button class="card-action" onclick="showPositionDetails()">Full List</button>
+                        </div>
+                        <div class="chart-container large">
+                            <canvas id="positionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab contents untuk menu lainnya -->
+            <div id="diversity" class="tab-content" style="display: none;">
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-title">Diversity Index</div>
+                        <div class="metric-value" style="color: #27ae60;">85%</div>
+                        <div class="metric-change change-positive">+5% improvement</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Gender Pay Gap</div>
+                        <div class="metric-value" style="color: #f39c12;">12%</div>
+                        <div class="metric-change change-negative">Target: <8%</div>
+                    </div>
+                    <!-- More diversity metrics... -->
+                </div>
+            </div>
+            
+            <div id="performance" class="tab-content" style="display: none;">
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-title">Average Performance Rating</div>
+                        <div class="metric-value">4.2/5.0</div>
+                        <div class="metric-change change-positive">+0.3 from last review</div>
+                    </div>
+                    <!-- More performance metrics... -->
+                </div>
+            </div>
+            
+            <div id="attrition" class="tab-content" style="display: none;">
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-title">Voluntary Turnover</div>
+                        <div class="metric-value" style="color: #e74c3c;">4.8%</div>
+                        <div class="metric-change change-negative">+1.2% from target</div>
+                    </div>
+                    <!-- More attrition metrics... -->
+                </div>
+            </div>
+            
+            <div id="compensation" class="tab-content" style="display: none;">
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-title">Average Salary</div>
+                        <div class="metric-value">$75,500</div>
+                        <div class="metric-change change-positive">+8.5% YoY growth</div>
+                    </div>
+                    <!-- More compensation metrics... -->
+                </div>
+            </div>
+            
+            <div id="reports" class="tab-content" style="display: none;">
+                <div class="dashboard-grid">
+                    <div class="card wide-card">
+                        <div class="card-title">Generate Custom Report</div>
+                        <div style="padding: 20px; text-align: center;">
+                            <p>Select metrics and date ranges to generate custom analytics reports</p>
+                            <div class="export-buttons" style="justify-content: center; margin-top: 20px;">
+                                <button class="export-btn" onclick="generateReport('monthly')">Monthly Report</button>
+                                <button class="export-btn" onclick="generateReport('quarterly')">Quarterly Report</button>
+                                <button class="export-btn" onclick="generateReport('annual')">Annual Report</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk detail -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Detail Information</h2>
+            <div id="modalContent">
+                <!-- Content akan diisi oleh JavaScript -->
+            </div>
+            <div class="export-buttons">
+                <button class="export-btn" onclick="exportModalData('pdf')">Export PDF</button>
+                <button class="export-btn" onclick="exportModalData('excel')">Export Excel</button>
+                <button class="export-btn" onclick="exportModalData('csv')">Export CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        <span id="notificationText">Action completed successfully!</span>
+    </div>
+
+    <script>
+        // Data komprehensif
+        const data = {
+            2024: {
+                totalEmployees: 247,
+                growthData: [198, 205, 215, 228, 235, 241, 247, 252, 249, 245, 247, 247],
+                genderData: { male: 142, female: 105 },
+                ageData: { '18-29': 45, '30-39': 95, '40-49': 78, '50-59': 25, '60+': 4 },
+                departmentData: {
+                    'Production': 145,
+                    'IT/IS': 42,
+                    'Sales': 31,
+                    'Admin Offices': 12,
+                    'Software Engineering': 15,
+                    'Executive Office': 2
+                },
+                positionData: {
+                    'Production Technician I': 78,
+                    'Production Technician II': 35,
+                    'Software Engineer': 18,
+                    'Data Analyst': 15,
+                    'IT Support': 12,
+                    'Sales Manager': 11,
+                    'Area Sales Manager': 8,
+                    'Production Manager': 6,
+                    'Accountant I': 5,
+                    'Database Administrator': 4,
+                    'BI Director': 3
+                },
+                turnoverData: {
+                    newHires: [15, 18, 22, 28, 25, 20, 18, 15, 12, 16, 20, 22],
+                    terminations: [8, 12, 15, 18, 16, 14, 12, 10, 8, 10, 12, 14]
+                },
+                tenureData: [25, 35, 42, 38, 32, 28, 22, 18, 15, 12],
+                terminationByTenureData: [12, 18, 22, 20, 16, 12, 8, 6, 4, 2]
+            },
+            2023: {
+                totalEmployees: 220,
+                growthData: [185, 192, 198, 205, 210, 215, 220, 225, 222, 218, 220, 220],
+                genderData: { male: 128, female: 92 },
+                ageData: { '18-29': 42, '30-39': 88, '40-49': 72, '50-59': 16, '60+': 2 },
+                departmentData: {
+                    'Production': 132,
+                    'IT/IS': 38,
+                    'Sales': 28,
+                    'Admin Offices': 10,
+                    'Software Engineering': 12,
+                    'Executive Office': 2
+                }
+            }
+        };
+
+        let currentYear = '2024';
+        let currentDept = 'All';
+        let currentTab = 'workforce';
+        let charts = {};
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+        }
+
+        // Switch tabs
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update header
+            updateHeader(tabName);
+            currentTab = tabName;
+            
+            // Show loading animation
+            showLoading();
+            
+            // Simulate data loading
+            setTimeout(() => {
+                hideLoading();
+                if (tabName === 'workforce') {
+                    initCharts();
+                }
+            }, 1000);
+        }
+
+        function updateHeader(tabName) {
+            const titles = {
+                workforce: 'Workforce Overview',
+                diversity: 'Diversity & Inclusion Analytics',
+                performance: 'Performance Management',
+                attrition: 'Attrition Analysis',
+                compensation: 'Compensation Analytics',
+                reports: 'Custom Reports'
+            };
+            
+            const subtitles = {
+                workforce: 'Comprehensive workforce insights and analytics',
+                diversity: 'Track diversity metrics and inclusion initiatives',
+                performance: 'Employee performance trends and ratings',
+                attrition: 'Understand why employees leave and retention strategies',
+                compensation: 'Salary benchmarks and compensation analysis',
+                reports: 'Generate custom analytics reports'
+            };
+            
+            document.getElementById('pageTitle').textContent = titles[tabName];
+            document.getElementById('pageSubtitle').textContent = subtitles[tabName];
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Initialize charts
+        function initCharts() {
+            const yearData = data[currentYear];
+            
+            // Growth Chart
+            if (charts.growth) charts.growth.destroy();
+            const growthCtx = document.getElementById('growthChart').getContext('2d');
+            charts.growth = new Chart(growthCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: 'Total Employees',
+                        data: yearData.growthData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#667eea',
+                            borderWidth: 1
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            showMonthlyDetails(index);
+                        }
+                    }
+                }
+            });
+
+            // Gender Chart
+            if (charts.gender) charts.gender.destroy();
+            const genderCtx = document.getElementById('genderChart').getContext('2d');
+            charts.gender = new Chart(genderCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Male', 'Female'],
+                    datasets: [{
+                        data: [yearData.genderData.male, yearData.genderData.female],
+                        backgroundColor: ['#667eea', '#764ba2'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed * 100) / total).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const gender = index === 0 ? 'male' : 'female';
+                            filterByGender(gender);
+                        }
+                    }
+                }
+            });
+
+            // Age Chart
+            if (charts.age) charts.age.destroy();
+            const ageCtx = document.getElementById('ageChart').getContext('2d');
+            charts.age = new Chart(ageCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(yearData.ageData),
+                    datasets: [{
+                        data: Object.values(yearData.ageData),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed.y * 100) / total).toFixed(1);
+                                    return `${context.parsed.y} employees (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const ageGroup = Object.keys(yearData.ageData)[index];
+                            filterByAge(ageGroup);
+                        }
+                    }
+                }
+            });
+
+            // Turnover Chart
+            if (charts.turnover) charts.turnover.destroy();
+            const turnoverCtx = document.getElementById('turnoverChart').getContext('2d');
+            charts.turnover = new Chart(turnoverCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: [{
+                        label: 'New Hires',
+                        data: yearData.turnoverData.newHires,
+                        backgroundColor: 'rgba(39, 174, 96, 0.8)',
+                        borderColor: '#27ae60',
+                        borderWidth: 1
+                    }, {
+                        label: 'Terminations',
+                        data: yearData.turnoverData.terminations,
+                        backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                        borderColor: '#e74c3c',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            showTurnoverDetails(elements[0].index);
+                        }
+                    }
+                }
+            });
+
+            // Tenure Chart
+            if (charts.tenure) charts.tenure.destroy();
+            const tenureCtx = document.getElementById('tenureChart').getContext('2d');
+            charts.tenure = new Chart(tenureCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10+'],
+                    datasets: [{
+                        data: yearData.tenureData,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#3498db'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            showTenureDetails(elements[0].index);
+                        }
+                    }
+                }
+            });
+
+            // Termination by Tenure Chart
+            if (charts.termination) charts.termination.destroy();
+            const terminationCtx = document.getElementById('terminationChart').getContext('2d');
+            charts.termination = new Chart(terminationCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0-1', '1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '7-8', '8-9', '9-10+'],
+                    datasets: [{
+                        data: yearData.terminationByTenureData,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#e74c3c'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Department Chart
+            if (charts.department) charts.department.destroy();
+            const deptCtx = document.getElementById('departmentChart').getContext('2d');
+            charts.department = new Chart(deptCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(yearData.departmentData),
+                    datasets: [{
+                        data: Object.values(yearData.departmentData),
+                        backgroundColor: [
+                            'rgba(102, 126, 234, 0.8)',
+                            'rgba(118, 75, 162, 0.8)',
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(241, 196, 15, 0.8)',
+                            'rgba(230, 126, 34, 0.8)'
+                        ],
+                        borderWidth: 0,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed.x * 100) / total).toFixed(1);
+                                    return `${context.parsed.x} employees (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const department = Object.keys(yearData.departmentData)[index];
+                            filterDepartment(department);
+                        }
+                    }
+                }
+            });
+
+            // Position Chart
+            if (charts.position) charts.position.destroy();
+            const positionCtx = document.getElementById('positionChart').getContext('2d');
+            charts.position = new Chart(positionCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(yearData.positionData),
+                    datasets: [{
+                        data: Object.values(yearData.positionData),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const position = Object.keys(yearData.positionData)[index];
+                            showPositionDetails(position);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update dashboard
+        function updateDashboard() {
+            currentYear = document.getElementById('yearFilter').value;
+            currentDept = document.getElementById('deptFilter').value;
+            
+            showLoading();
+            
+            setTimeout(() => {
+                const yearData = data[currentYear];
+                
+                // Update total employees
+                document.getElementById('totalEmployees').textContent = yearData.totalEmployees;
+                
+                // Update all charts
+                initCharts();
+                
+                hideLoading();
+                showNotification(`Dashboard updated for ${currentYear}`);
+            }, 500);
+        }
+
+        // Search functionality
+        function searchEmployees() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            showNotification(`Searching for: ${searchTerm}`);
+            // Implementasi search logic
+        }
+
+        // Modal functions
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('detailModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // Click handlers
+        function showEmployeeDetails() {
+            const content = `
+                <h3>Employee Breakdown</h3>
+                <p><strong>Total Active:</strong> 247 employees</p>
+                <p><strong>New Hires (YTD):</strong> 45 employees</p>
+                <p><strong>Departures (YTD):</strong> 18 employees</p>
+                <p><strong>Growth Rate:</strong> +12% compared to last year</p>
+                <p><strong>Departments:</strong> 6 active departments</p>
+                <p><strong>Average Age:</strong> 38.5 years</p>
+            `;
+            showModal('Employee Details', content);
+        }
+
+        function showGrowthDetails() {
+            const content = `
+                <h3>Growth Analysis</h3>
+                <p><strong>Current Growth Rate:</strong> 8.5% annually</p>
+                <p><strong>Target Growth Rate:</strong> 6.4% annually</p>
+                <p><strong>Performance:</strong> Exceeding target by 2.1%</p>
+                <p><strong>Projected EOY Headcount:</strong> 265 employees</p>
+                <p><strong>Key Growth Drivers:</strong></p>
+                <ul>
+                    <li>New product launches</li>
+                    <li>Market expansion</li>
+                    <li>Increased demand</li>
+                </ul>
+            `;
+            showModal('Growth Analysis', content);
+        }
+
+        function showGenderDetails() {
+            const content = `
+                <h3>Gender Distribution Analysis</h3>
+                <p><strong>Male:</strong> 142 employees (57.5%)</p>
+                <p><strong>Female:</strong> 105 employees (42.5%)</p>
+                <p><strong>Target Ratio:</strong> 50:50</p>
+                <p><strong>Initiatives:</strong></p>
+                <ul>
+                    <li>Focused female recruitment</li>
+                    <li>Leadership development programs</li>
+                    <li>Work-life balance improvements</li>
+                </ul>
+            `;
+            showModal('Gender Distribution', content);
+        }
+
+        function filterByGender(gender) {
+            showNotification(`Filtering by gender: ${gender}`);
+            // Implementasi filter logic
+        }
+
+        function filterByAge(ageGroup) {
+            showNotification(`Filtering by age group: ${ageGroup}`);
+            // Implementasi filter logic
+        }
+
+        function filterDepartment(dept) {
+            // Update button styles
+            document.querySelectorAll('.dept-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            showNotification(`Filtering by department: ${dept}`);
+            // Implementasi filter logic
+        }
+
+        function showPositionDetails(position) {
+            const content = `
+                <h3>Position: ${position}</h3>
+                <p><strong>Current Headcount:</strong> ${data[currentYear].positionData[position]} employees</p>
+                <p><strong>Avg. Tenure:</strong> 4.2 years</p>
+                <p><strong>Avg. Performance:</strong> 4.1/5.0</p>
+                <p><strong>Turnover Rate:</strong> 5.2%</p>
+                <p><strong>Open Positions:</strong> 3</p>
+            `;
+            showModal('Position Details', content);
+        }
+
+        function showMonthlyDetails(monthIndex) {
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+            const month = months[monthIndex];
+            const employees = data[currentYear].growthData[monthIndex];
+            
+            const content = `
+                <h3>${month} ${currentYear} Details</h3>
+                <p><strong>Total Employees:</strong> ${employees}</p>
+                <p><strong>New Hires:</strong> ${data[currentYear].turnoverData.newHires[monthIndex]}</p>
+                <p><strong>Departures:</strong> ${data[currentYear].turnoverData.terminations[monthIndex]}</p>
+                <p><strong>Net Change:</strong> +${data[currentYear].turnoverData.newHires[monthIndex] - data[currentYear].turnoverData.terminations[monthIndex]}</p>
+            `;
+            showModal(`${month} Analytics`, content);
+        }
+
+        // Export functions
+        function exportData(type) {
+            showNotification(`Exporting ${type} data...`);
+            // Implementasi export logic
+        }
+
+        function exportModalData(format) {
+            showNotification(`Exporting to ${format.toUpperCase()}...`);
+            closeModal();
+        }
+
+        function generateReport(type) {
+            showNotification(`Generating ${type} report...`);
+        }
+
+        // Notification system
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            document.getElementById('notificationText').textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            showLoading();
+            setTimeout(() => {
+                initCharts();
+                hideLoading();
+                showNotification('Dashboard loaded successfully!');
+            }, 1500);
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
